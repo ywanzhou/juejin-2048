@@ -17,8 +17,9 @@ export default defineConfig(({ mode }: ConfigEnv) => {
       },
       extensions: ['.js', '.json', '.ts', '.vue'], // 使用路径别名时想要省略的后缀名，可以自己 增减
     },
-    base: '/juejin-2048/dist',
+    base: mode == 'production' ? '/juejin-2048/' : '',
     server: {
+      port: 2048,
       proxy: {
         // 使用 proxy 实例
         '/api': {

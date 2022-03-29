@@ -19,7 +19,7 @@
         <div v-for="inx in n2048" :key="inx">
           <img
             v-if="item === inx"
-            :src="`/image/block_${item}.png`"
+            :src="getImageUrl(item)"
             class="w-full he-full user-drag animate-scale"
           />
         </div>
@@ -37,6 +37,9 @@
 import { ref } from 'vue'
 import GameOverDialogVue from 'cpns/GameOverDialog.vue'
 import OreIcon from 'cpns/OreIcon.vue'
+const getImageUrl = (item: number) => {
+  return new URL(`./assets/image/block_${item}.png`, import.meta.url).href
+}
 const n2048 = ref<number[]>([
   0, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768,
   65536, 131072,
