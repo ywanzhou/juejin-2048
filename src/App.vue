@@ -6,6 +6,7 @@
       <h4
         class="font-bold text-2xl mb-5 flex bg-[rgba(30,128,255,.8)] rounded-full text-white pt-3 pr-10 pb-2 pl-6"
       >
+        <!-- 矿石图标 -->
         <OreIcon />
         ：{{ score }}
       </h4>
@@ -29,7 +30,7 @@
       <p>说明：矿石兑换凭截图找托尼老师，不兑换可不怪我哦~</p>
       <p>游戏玩法：PC端按下上左右、H5你就在手机上来回的划拉就好~</p>
     </div>
-    <!-- 将游戏结束的弹框抽离为单独组件 -->
+    <!-- 将游戏结束的弹框 -->
     <GameOverDialogVue v-model="show" :score="score" @restart="handleReStart" />
   </div>
 </template>
@@ -42,7 +43,6 @@ const getImageUrl = (item: number) => {
 }
 const n2048 = ref<number[]>([
   0, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768,
-  65536, 131072,
 ])
 const over = ref(false)
 const dataArray = ref<number[]>([
@@ -51,19 +51,7 @@ const dataArray = ref<number[]>([
 const score = ref(0)
 const show = ref(false)
 type DirectionType = 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown'
-const DirectionArr: DirectionType[] = [
-  'ArrowLeft',
-  'ArrowRight',
-  'ArrowUp',
-  'ArrowDown',
-]
-const moveXY = {
-  startX: 0,
-  startY: 0,
-  endX: 0,
-  endY: 0,
-}
-// 索引
+// 四个方向每一次需要使用的索引
 const DATA_PROPS = {
   ArrowLeft: [
     [0, 1, 2, 3],
@@ -91,11 +79,24 @@ const DATA_PROPS = {
   ],
 }
 
+const DirectionArr: DirectionType[] = [
+  'ArrowLeft',
+  'ArrowRight',
+  'ArrowUp',
+  'ArrowDown',
+]
 document.addEventListener('keyup', (e: KeyboardEvent) => {
   if (DirectionArr.find(item => item === e.key)) {
-    runGame(e.key as unknown as DirectionType)
+    run(e.key as unknown as DirectionType)
   }
 })
+// 记录触摸开始和结束的位置
+const moveXY = {
+  startX: 0,
+  startY: 0,
+  endX: 0,
+  endY: 0,
+}
 const handleTouchStart = (e: TouchEvent) => {
   e.preventDefault()
   // 获取开始的位置
@@ -112,20 +113,20 @@ const handleTouchEnd = (e: TouchEvent) => {
   const distanceY = moveXY.endY - moveXY.startY
   // 判断滑动方向
   if (Math.abs(distanceX) > Math.abs(distanceY) && distanceX < 0) {
-    runGame('ArrowLeft')
+    run('ArrowLeft')
   } else if (Math.abs(distanceX) > Math.abs(distanceY) && distanceX > 0) {
-    runGame('ArrowRight')
+    run('ArrowRight')
   } else if (Math.abs(distanceX) < Math.abs(distanceY) && distanceY < 0) {
-    runGame('ArrowUp')
+    run('ArrowUp')
   } else if (Math.abs(distanceX) < Math.abs(distanceY) && distanceY > 0) {
-    runGame('ArrowDown')
+    run('ArrowDown')
   }
 }
-const runGame = (direction: DirectionType) => {
-  if (over.value) {
-    return
-  }
-  run(dataArray.value, direction)
+const run = (direction: DirectionType) => {
+  // over 用于记录游戏是否结束
+  if (over.value) return
+
+  ArrComputed(dataArray.value, direction)
   gameOver(dataArray.value)
   create(dataArray.value)
 }
@@ -134,14 +135,19 @@ const _2048 = (arr: number[], boo = true) => {
   for (let i = 0; i < arr.length; i++) {
     // 如果当前的数值为0直接跳出本次循环
     if (!arr[i]) continue
-    // 解决中间存在0两个值不比较的bug
+    // 当出现 32768 表示游戏结束（因为没有比32768更大的图了）
+    if (arr[i] === 32768) {
+      // TODO 游戏结束 win
+      gameOverBox()
+      return []
+    }
     let j = i + 1
 
     for (; j < arr.length; j++) {
       if (arr[j] !== 0) break
     }
-    // 比较是否相等，将结果push到新数组中
 
+    // 比较是否相等，将结果push到新数组中
     if (arr[i] === arr[j]) {
       if (boo) {
         score.value += arr[i]
@@ -161,7 +167,7 @@ const setArrayVal = (arr: number[], index: number[], value: number[]) => {
     arr[val] = value[index]
   })
 }
-const run = (arr: number[], direction: DirectionType, bool = true) => {
+const ArrComputed = (arr: number[], direction: DirectionType, bool = true) => {
   DATA_PROPS[direction].forEach(_ => {
     const newArr = _2048([arr[_[0]], arr[_[1]], arr[_[2]], arr[_[3]]], bool)
     setArrayVal(arr, _, newArr)
@@ -172,10 +178,6 @@ const run = (arr: number[], direction: DirectionType, bool = true) => {
 const create = (arr: number[]) => {
   // 查找数组中未0的索引，将其保存到一个数组中
   const val0Arr = findIndexAll(arr, 0)
-  if (val0Arr.length === 0) {
-    // 游戏结束
-    // console.error('游戏结束')
-  }
 
   const random = Math.floor(Math.random() * val0Arr.length)
   const index = val0Arr[random]
@@ -206,17 +208,18 @@ const gameOver = (arr: number[]) => {
   // 计算四个方向
   const _res: string[] = []
   DirectionArr.forEach(item => {
-    run(testArr, item, false)
+    ArrComputed(testArr, item, false)
     _res.push(JSON.stringify(testArr))
   })
 
   if (_res.filter(i => i === oldArr).length == 4) {
     // 游戏结束
     over.value = true
+    // 打开游戏结束的弹框组件
     gameOverBox()
   }
 }
-// 重新开始
+// 数组重置的函数
 const restart = () => {
   const arr = Array.apply(null, Array(16)).map(Number.prototype.valueOf, 0)
   const random1 = Math.floor(Math.random() * arr.length)
@@ -230,6 +233,7 @@ const gameOverBox = () => {
   // 游戏结束 打开弹框
   show.value = true
 }
+// 重新开始
 const handleReStart = () => {
   show.value = false
   dataArray.value = restart()
